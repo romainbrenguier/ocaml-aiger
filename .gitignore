@@ -12,6 +12,10 @@
 # ocamlbuild working directory
 _build/
 
+# svn
+.svn
+examples/.svn
+
 # ocamlbuild targets
 *.byte
 *.native
