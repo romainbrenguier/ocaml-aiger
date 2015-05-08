@@ -1,0 +1,3 @@
+
+test: test.ml
+	ocamlc ../aiger.cma test.ml

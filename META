@@ -1,0 +1,6 @@
+name="ocaml-aiger"
+description="OCaml library for AIGER files"
+version="0.1"
+depends="str"
+archive(byte)="aiger.cma"
+archive(native)="aiger.cmx"
