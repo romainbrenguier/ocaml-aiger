@@ -21,7 +21,9 @@ install: aiger.cma aiger.cmx aiger.cmo
 uninstall:
 	ocamlfind remove aiger
 
-doc: 
+doc: doc/Aiger.html
+
+doc/Aiger.html: aiger.mli 
 	ocamldoc -html aiger.mli -d doc
 
 .phony: install uninstall
