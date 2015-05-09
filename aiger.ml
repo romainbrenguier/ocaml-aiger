@@ -117,7 +117,8 @@ let change_correspondance aiger old_symbol new_symbol =
   try
     let lit = SymbolMap.find old_symbol aiger.symbols in
     let a = LitMap.add lit new_symbol aiger.abstract in
-    let s = SymbolMap.add new_symbol lit aiger.symbols in
+    let s = SymbolMap.remove old_symbol aiger.symbols in
+    let s = SymbolMap.add new_symbol lit s in
     {aiger with abstract=a; symbols=s}
   with 
     Not_found -> Printf.eprintf "Warning: symbol %s was not previously defined\n" (Symbol.to_string old_symbol);
