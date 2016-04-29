@@ -417,8 +417,13 @@ let write aiger outch =
     List.fold_left
       (fun accu s -> 
        let lits = name_to_literals aiger s in 
-       let list,nb = Array.fold_left (fun (accu,i) lit -> (lit,(s,Some i)):: accu,i+1) (accu,0) lits in
-       list
+       if Array.length lits = 1
+       then 
+	 (lits.(0), (s,None)) :: accu
+       else
+	 let list,nb = Array.fold_left (fun (accu,i) lit -> (lit,(s,Some i)):: accu,i+1) (accu,0) lits in
+	 list
+
       ) [] (outputs aiger)
   in
 
