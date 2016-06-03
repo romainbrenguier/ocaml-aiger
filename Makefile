@@ -1,4 +1,4 @@
-all: aiger.cma aiger.cmx aiger.cmo
+all: aiger.cma aiger.cmx aiger.cmo 
 
 aiger.cma:
 	ocamlbuild -lib str aiger.cma
@@ -8,6 +8,16 @@ aiger.cmx:
 
 aiger.cmo:
 	ocamlbuild -lib str aiger.cmo
+
+
+aigerImperative.cma:
+	ocamlbuild -lib str aigerImperative.cma
+
+aigerImperative.cmx:
+	ocamlbuild -lib str aigerImperative.cmx
+
+aigerImperative.cmo:
+	ocamlbuild -lib str aigerImperative.cmo
 
 compose.native:
 	ocamlbuild -lib str compose.native
@@ -21,9 +31,14 @@ install: aiger.cma aiger.cmx aiger.cmo
 uninstall:
 	ocamlfind remove aiger
 
+clean: 
+	ocamlbuild -clean
+
 doc: doc/Aiger.html
 
 doc/Aiger.html: aiger.mli 
 	ocamldoc -html aiger.mli -d doc
 
 .phony: install uninstall
+
+

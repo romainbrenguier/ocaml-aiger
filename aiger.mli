@@ -133,4 +133,5 @@ val full_rename : t -> (string * string) list -> t
 *)
 val compose : t -> t -> t
 
-
+(** Reduce the size of the AIG by merging gates with same definition *)
+val reduce : t -> t

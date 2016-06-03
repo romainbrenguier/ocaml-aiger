@@ -237,7 +237,7 @@ let insert x l =
     | a :: s -> List.rev_append accu (x :: a :: s)
   in aux [] l
 
-(* raise an exception if teh literal is already in the list *)
+(* raise an exception if the literal is already in the list *)
 let insert_unique x l =
   let rec aux accu = function
     | [] -> List.rev_append accu [x]
@@ -544,3 +544,55 @@ let compose aiger1 aiger2 =
   aiger
 
 
+(* reduce the size of the aiger file by merging identical gates *)
+let reduce aiger = 
+  let tab = Hashtbl.create aiger.num_ands in
+  let correspondance = Hashtbl.create aiger.num_ands in
+
+  let find_tab (r0,r1) = 
+    try Hashtbl.find tab (min r0 r1, max r0 r1) 
+    with Not_found -> if r0 = aiger_false || r1 = aiger_false then aiger_false
+      else if r1 = aiger_true then r0 else if r0 = aiger_true then r1 else raise Not_found
+  in
+  let add_tab (r0,r1) = Hashtbl.add tab (min r0 r1, max r0 r1) in
+
+
+  let add_correspondance = Hashtbl.add correspondance in
+  let find_correspondance = Hashtbl.find correspondance in
+
+  let new_aiger = 
+    List.fold_left 
+      (fun aiger (lhs,rhs0,rhs1) ->
+	try 
+	  let rhs = find_tab (rhs0,rhs1) in
+	  add_correspondance lhs rhs;
+	  aiger
+	with Not_found -> 
+	  let aig,var = new_var aiger in
+	  let lit = var2lit var in
+	  add_correspondance lhs lit;
+	  add_tab (rhs0,rhs1) lhs;
+	  add_and aig lit (find_correspondance rhs0) (find_correspondance rhs1)
+      ) empty aiger.ands
+  in
+
+  let new_aiger =
+    List.fold_left
+      (fun aig inp -> 
+	add_input aiger (find_correspondance inp) (lit2symbol aiger inp)
+      ) new_aiger aiger.inputs
+  in
+  let new_aiger =
+    List.fold_left
+      (fun aig (lhs,rhs) -> 
+	add_latch aiger (find_correspondance lhs) (find_correspondance rhs) (lit2symbol aiger lhs)
+      ) new_aiger aiger.latches
+  in
+  let new_aiger =
+    List.fold_left
+      (fun aig out -> 
+	add_output aiger (find_correspondance out) (lit2symbol aiger out)
+      ) new_aiger aiger.outputs
+  in
+  
+  new_aiger
