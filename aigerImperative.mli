@@ -27,6 +27,9 @@ val aiger_false : lit
 val aiger_true : lit
 val neg : lit -> lit
 
+type lit_set
+val lit_set_fold : (int -> lit -> 'a -> 'a) -> lit_set -> 'a -> 'a
+
 type t = {
   mutable maxvar:int;   
   mutable num_inputs:int;
@@ -34,18 +37,15 @@ type t = {
   mutable num_outputs:int;
   mutable num_ands:int;
 
-  inputs:(int,lit) Hashtbl.t;
-  latches:(int,(lit*lit)) Hashtbl.t;
-  latches_inv:(lit,int) Hashtbl.t;
-  outputs:(int,lit) Hashtbl.t;
-
+  inputs: lit_set;
+  latches:(lit,lit) Hashtbl.t;
+  outputs:lit_set;
   ands: (lit,lit*lit) Hashtbl.t;
-  inverse_ands: (lit*lit,lit) Hashtbl.t;
-
-  mutable comments:string list;
-
+  ands_inv: (lit*lit,lit) Hashtbl.t;
   symbols: (lit,string) Hashtbl.t;
   symbols_inv: (string,lit) Hashtbl.t;
+
+  mutable comments:string list;
 }
 
 val read : in_channel -> t
@@ -74,23 +74,16 @@ val string2lit : t -> string -> lit option
 val lit2string_exn : t -> lit -> string
 val string2lit_exn : t -> string -> lit
 
-(** remove an output *)
-val hide : t -> Aiger.Symbol.t -> unit
-val full_hide : t -> string -> unit
+(** More practical way to access litterals *)
+type tag = Constant of bool | Input of lit | Latch of (lit*lit) | And of (lit*lit*lit) | Output of lit
 
-(** These functions raise [Not_found] if the index does not correspond to a literal *)
-val nth_input_exn : t -> int -> lit 
-val nth_output_exn : t -> int -> lit 
-val nth_latch_exn : t -> int -> (lit * lit)
+val lit2tag : t -> lit -> tag option
+(** [lit2tag_exn] may raise [Not_found] exception *)
+val lit2tag_exn : t -> lit -> tag
 
-
-(** Give an array containing all the literals encoding the given name.
-    For example, for an integer "i" encoded on two bits, [name_to_literals a "i"] will return the literals corresponding to "i<0>" and "i<1>".
-*)
-val name_to_literals : t -> string -> lit array
-
-(** Gives the number of literal encoding the variable with the given name. *)
-val size_symbol : t -> string -> int
+(** remove an output, may raise an exception [Not_found] if the name does not correspond to any literal, and [Not_output] if it is not an output *)
+exception Not_output of tag
+val hide : t -> string -> unit
 
 (** List of names used as symbols. *)
 val names : t -> string list
@@ -98,13 +91,7 @@ val inputs : t -> string list
 val outputs : t -> string list
 val latches : t -> string list
 
-type tag = Constant of bool | Input of lit | Latch of (lit*lit) | And of (lit*lit*lit) | Output of lit
-
-val lit2tag : t -> lit -> tag
-
-(** Rename variables of the aiger file according to the correspondance given in the list *)
-val rename : t -> (Aiger.Symbol.t * Aiger.Symbol.t) list -> unit
-
-val full_rename : t -> (string * string) list -> unit
+(** Rename variables of the aiger file according to the given correspondance *)
+val rename : t -> (string -> string) -> unit
 
 
