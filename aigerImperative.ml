@@ -23,6 +23,8 @@ let aiger_false = 0
 let aiger_true = 1
 let neg lit = if lit mod 2 = 0 then lit + 1 else lit - 1
 
+let test = BatDynArray.make 0
+
 type lit_set = (lit,bool) Hashtbl.t
 
 let lit_set_fold f set start = 
@@ -100,8 +102,8 @@ let parse inch =
     );
 
   let inputs = Array.make aiger.num_inputs aiger_false in
-  let latches = Array.make aiger.num_inputs aiger_false in
-  let outputs = Array.make aiger.num_inputs aiger_false in
+  let latches = Array.make aiger.num_latches aiger_false in
+  let outputs = Array.make aiger.num_outputs aiger_false in
 
   let add_input index lit = 
     Hashtbl.add aiger.inputs lit true;
@@ -313,7 +315,7 @@ let outputs aiger =
 
 let write aiger outch =
   Printf.fprintf outch "aag %d %d %d %d %d\n" aiger.maxvar aiger.num_inputs aiger.num_latches aiger.num_outputs aiger.num_ands;
-  lit_set_fold (fun i l () -> Printf.fprintf outch "%d\n" l) aiger.inputs ();
+  lit_set_fold (fun i lit () -> Printf.fprintf outch "%d\n" lit) aiger.inputs ();
   Hashtbl.iter (fun a b -> Printf.fprintf outch "%d %d\n" a b) aiger.latches;
   lit_set_fold (fun i lit () -> Printf.fprintf outch "%d\n" lit) aiger.outputs ();
   Hashtbl.iter (fun a (b,c) -> Printf.fprintf outch "%d %d %d\n" a b c) aiger.ands;
