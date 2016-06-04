@@ -23,19 +23,34 @@ let aiger_false = 0
 let aiger_true = 1
 let neg lit = if lit mod 2 = 0 then lit + 1 else lit - 1
 
-let test = BatDynArray.make 0
+module LitSet = 
+struct
+  type t = { mutable lit_max:int ; lit_tab:(lit,int) Hashtbl.t}
 
-type lit_set = (lit,bool) Hashtbl.t
+  let make () = {lit_max=0; lit_tab=Hashtbl.create 100}
+  let fold f set start = 
+    Hashtbl.fold (fun lit i accu ->
+      f i lit accu
+    ) set.lit_tab start
 
-let lit_set_fold f set start = 
-  let nb,res = 
-    Hashtbl.fold (fun lit b (i,accu) ->
-      if not b then (i,accu)
-      else
-	let res = f i lit accu in (i+1,res)
-    ) set (0,start)      
-  in res      
+  let add set lit = 
+    Hashtbl.add set.lit_tab lit set.lit_max;
+    set.lit_max <- set.lit_max+1
 
+  let mem set lit =
+    Hashtbl.mem set.lit_tab lit
+
+  let remove set lit = 
+    let start = Hashtbl.find set.lit_tab lit in
+    Hashtbl.remove set.lit_tab lit;
+    Hashtbl.iter (fun lit index ->
+      if index > start 
+      then Hashtbl.replace set.lit_tab lit (index - 1)
+    ) set.lit_tab;
+    set.lit_max <- set.lit_max - 1
+
+end
+  
 type t = {
   mutable maxvar:int;   
   mutable num_inputs:int;
@@ -43,9 +58,9 @@ type t = {
   mutable num_outputs:int;
   mutable num_ands:int;
 
-  inputs: lit_set;
+  inputs: LitSet.t;
   latches:(lit,lit) Hashtbl.t;
-  outputs:lit_set;
+  outputs:LitSet.t;
   ands: (lit,lit*lit) Hashtbl.t;
   ands_inv: (lit*lit,lit) Hashtbl.t;
   symbols: (lit,string) Hashtbl.t;
@@ -79,9 +94,9 @@ let change_correspondance aiger old_symbol new_symbol =
 let empty () =   
   {maxvar=0; num_inputs=0; num_latches=0;
    num_outputs=0;num_ands=0;
-   inputs=Hashtbl.create 100; 
+   inputs=LitSet.make (); 
    latches=Hashtbl.create 100; 
-   outputs=Hashtbl.create 100; 
+   outputs=LitSet.make (); 
    ands=Hashtbl.create 100; 
    ands_inv=Hashtbl.create 100; 
    comments= []; 
@@ -106,7 +121,7 @@ let parse inch =
   let outputs = Array.make aiger.num_outputs aiger_false in
 
   let add_input index lit = 
-    Hashtbl.add aiger.inputs lit true;
+    LitSet.add aiger.inputs lit;
     inputs.(index) <- lit
   in
     
@@ -135,7 +150,7 @@ let parse inch =
   done;
 
   let add_output index lit = 
-    Hashtbl.add aiger.outputs lit true;
+    LitSet.add aiger.outputs lit;
     outputs.(index) <- lit
   in
 
@@ -215,7 +230,7 @@ exception AlreadyExists
 let add_input t name =
   t.num_inputs <- t.num_inputs + 1;
   let lit = new_var t in
-  Hashtbl.add t.inputs lit true;
+  LitSet.add t.inputs lit;
   add_correspondance t lit name;
   lit
 
@@ -231,7 +246,7 @@ let set_latch_update t lit upd =
   
 let set_output t name lit = 
   t.num_outputs <- t.num_outputs + 1;
-  Hashtbl.add t.outputs lit true;
+  LitSet.add t.outputs lit;
   add_correspondance t lit name
 
 let conj t rhs0 rhs1 = 
@@ -257,10 +272,10 @@ type tag = Constant of bool | Input of lit | Latch of (lit*lit) | And of (lit*li
 let lit2tag_exn t lit = 
   if lit < 2 then Constant (lit = 1)
   else 
-    if Hashtbl.mem t.inputs lit
+    if LitSet.mem t.inputs lit
     then Input lit
     else
-      if Hashtbl.mem t.outputs lit
+      if LitSet.mem t.outputs lit
       then Output lit
       else
 	try Latch (lit, Hashtbl.find t.latches lit)
@@ -276,10 +291,10 @@ exception Not_output of tag
 let hide t name = 
   let l = string2lit_exn t name in
   try
-    if not (Hashtbl.mem t.inputs l || Hashtbl.mem t.latches l)
+    if not (LitSet.mem t.inputs l || Hashtbl.mem t.latches l)
     then (Hashtbl.remove t.symbols_inv name;
 	  Hashtbl.remove t.symbols l);
-    Hashtbl.remove t.outputs l;
+    LitSet.remove t.outputs l;
     t.num_outputs <- t.num_outputs - 1;
   with Not_found -> raise (Not_output (lit2tag_exn t l))
 
@@ -290,11 +305,10 @@ let names aiger =
   ) aiger.symbols []
 
 let inputs aiger = 
-  Hashtbl.fold 
-    (fun lit b accu -> 
-      if not b then accu else
-	let name = lit2string_exn aiger lit in
-	name :: accu
+  LitSet.fold 
+    (fun index lit accu -> 
+      let name = lit2string_exn aiger lit in
+      name :: accu
     ) aiger.inputs []
 
 let latches aiger = 
@@ -305,24 +319,46 @@ let latches aiger =
     ) aiger.latches []
 
 let outputs aiger = 
-  Hashtbl.fold 
-    (fun lit b accu -> 
-      if not b then accu else
-	let name = lit2string_exn aiger lit in
-	name :: accu
+  LitSet.fold 
+    (fun lit index accu -> 
+      let name = lit2string_exn aiger lit in
+      name :: accu
     ) aiger.outputs []
+    
+  
 
-
+    
 let write aiger outch =
+  let inputs = 
+    LitSet.fold (fun i lit accu -> (i,lit):: accu) aiger.inputs [] 
+  |> List.sort (fun (a,_) (b,_) -> compare a b) 
+  in
+  let outputs = 
+    LitSet.fold (fun i lit accu -> (i,lit):: accu) aiger.outputs [] 
+  |> List.sort (fun (a,_) (b,_) -> compare a b) 
+  in
+  let latches = 
+    Hashtbl.fold (fun lhs rhs accu -> lhs :: accu) aiger.latches [] 
+  |> List.sort compare 
+  |> List.fold_left (fun (i,accu) lhs -> i+1 , (i,lhs) :: accu) (0,[])
+  |> snd
+  |> List.rev
+  in
+  let ands = 
+    Hashtbl.fold (fun lhs (rhs0,rhs1) accu -> (lhs,rhs0,rhs1) :: accu) aiger.ands [] 
+  |> List.sort (fun (a,_,_) (b,_,_) -> compare a b)
+  in
+
+
   Printf.fprintf outch "aag %d %d %d %d %d\n" aiger.maxvar aiger.num_inputs aiger.num_latches aiger.num_outputs aiger.num_ands;
-  lit_set_fold (fun i lit () -> Printf.fprintf outch "%d\n" lit) aiger.inputs ();
-  Hashtbl.iter (fun a b -> Printf.fprintf outch "%d %d\n" a b) aiger.latches;
-  lit_set_fold (fun i lit () -> Printf.fprintf outch "%d\n" lit) aiger.outputs ();
-  Hashtbl.iter (fun a (b,c) -> Printf.fprintf outch "%d %d %d\n" a b c) aiger.ands;
-  lit_set_fold (fun i a () -> Printf.fprintf outch "i%d %s\n" i (lit2string_exn aiger a)) aiger.inputs ();
-  ignore (Hashtbl.fold (fun lhs rhs i -> Printf.fprintf outch "l%d %s\n" i (lit2string_exn aiger lhs); i+1) aiger.latches 0);
+  List.iter (fun (_,lit) -> Printf.fprintf outch "%d\n" lit) inputs ;
+  List.iter (fun (_,lit) -> Printf.fprintf outch "%d %d\n" lit (Hashtbl.find aiger.latches lit)) latches;
+  List.iter (fun (_,lit) -> Printf.fprintf outch "%d\n" lit) outputs;
+  List.iter (fun (a,b,c) -> Printf.fprintf outch "%d %d %d\n" a b c) ands;
+  List.iter (fun (i,a) -> Printf.fprintf outch "i%d %s\n" i (lit2string_exn aiger a)) inputs;
+  List.iter (fun (i,lhs) -> Printf.fprintf outch "l%d %s\n" i (lit2string_exn aiger lhs)) latches;
   (* Some outputs could have been removed *)
-  lit_set_fold (fun i a () -> Printf.fprintf outch "o%d %s\n" i (lit2string_exn aiger a)) aiger.outputs ();
+  List.iter (fun (i,a) -> Printf.fprintf outch "o%d %s\n" i (lit2string_exn aiger a)) outputs;
   if aiger.comments <> [] then Printf.fprintf outch "c\n";
   List.iter (fun a -> Printf.fprintf outch "%s\n" a) aiger.comments
 

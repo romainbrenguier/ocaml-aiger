@@ -27,9 +27,21 @@ val aiger_false : lit
 val aiger_true : lit
 val neg : lit -> lit
 
-type lit_set
-val lit_set_fold : (int -> lit -> 'a -> 'a) -> lit_set -> 'a -> 'a
+module LitSet :
+sig
+  type t
+  val make : unit -> t
+  val fold : (int -> lit -> 'a -> 'a) -> t -> 'a -> 'a
+  val add : t -> lit -> unit
+end
 
+
+(** Type for AIG representation.
+    The invariant are that: 
+    a litteral represents a unique input latch or and gate.
+    the number of entries in [inputs], [latches], [ands] and [outputs] are equal to
+    [num_inputs], [num_latches], [num_outputs] and [num_ands] respectively.
+*)
 type t = {
   mutable maxvar:int;   
   mutable num_inputs:int;
@@ -37,9 +49,9 @@ type t = {
   mutable num_outputs:int;
   mutable num_ands:int;
 
-  inputs: lit_set;
+  inputs: LitSet.t;
   latches:(lit,lit) Hashtbl.t;
-  outputs:lit_set;
+  outputs:LitSet.t;
   ands: (lit,lit*lit) Hashtbl.t;
   ands_inv: (lit*lit,lit) Hashtbl.t;
   symbols: (lit,string) Hashtbl.t;
