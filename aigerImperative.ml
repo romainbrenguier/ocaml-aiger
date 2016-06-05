@@ -328,7 +328,7 @@ let outputs aiger =
   
 
     
-let write aiger outch =
+let write outch aiger =
   let inputs = 
     LitSet.fold (fun i lit accu -> (i,lit):: accu) aiger.inputs [] 
   |> List.sort (fun (a,_) (b,_) -> compare a b) 
@@ -365,7 +365,7 @@ let write aiger outch =
 
 let write_to_file aiger file = 
   let outch = open_out file in
-  write aiger outch;
+  write outch aiger;
   close_out outch
 
 let rename aiger renaming =

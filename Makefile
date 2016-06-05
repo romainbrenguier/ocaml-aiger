@@ -1,4 +1,4 @@
-all: aiger.cma aiger.cmx aiger.cmo 
+all: aiger.cma aiger.cmx aiger.cmo aigerImperative.cma aigerImperative.cmx aigerImperative.cmo
 
 aiger.cma:
 	ocamlbuild -lib str aiger.cma
@@ -11,19 +11,27 @@ aiger.cmo:
 
 
 aigerImperative.cma:
-	ocamlbuild -lib str -package batteries aigerImperative.cma
+	ocamlbuild -lib str aigerImperative.cma
 
 aigerImperative.cmx:
-	ocamlbuild -lib str -package batteries  aigerImperative.cmx
+	ocamlbuild -lib str  aigerImperative.cmx
 
 aigerImperative.cmo:
-	ocamlbuild -lib str -package batteries  aigerImperative.cmo
+	ocamlbuild -lib str  aigerImperative.cmo
 
-compose.native:
-	ocamlbuild -lib str compose.native
+examples: compose.native rename.native verilog.native minispec.native
 
-rename.native:
-	ocamlbuild -lib str -package batteries rename.native
+compose.native: examples/compose.ml
+	ocamlbuild -lib str examples/compose.native
+
+rename.native: examples/rename.ml
+	ocamlbuild -lib str examples/rename.native
+
+verilog.native: examples/verilog.ml
+	ocamlbuild -lib str examples/verilog.native
+
+minispec.native: examples/minispec.ml
+	ocamlbuild -lib str examples/minispec.native
 
 install: aiger.cma aiger.cmx aiger.cmo
 	ocamlfind install aiger META aiger.mli _build/aiger.cmi _build/aiger.cma _build/aiger.cmx _build/aiger.cmo _build/aiger.o

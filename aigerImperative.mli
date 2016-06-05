@@ -62,7 +62,7 @@ type t = {
 
 val read : in_channel -> t
 val read_from_file : string -> t
-val write : t -> out_channel -> unit
+val write : out_channel -> t -> unit
 val write_to_file : t -> string -> unit
 
 val empty : unit -> t
