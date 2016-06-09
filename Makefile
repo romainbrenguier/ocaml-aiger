@@ -33,6 +33,9 @@ verilog.native: examples/verilog.ml
 minispec.native: examples/minispec.ml
 	ocamlbuild -lib str examples/minispec.native
 
+acacia2aig.native: examples/acacia2aig.ml
+	ocamlbuild -lib str examples/acacia2aig.native
+
 install: aiger.cma aiger.cmx aiger.cmo
 	ocamlfind install aiger META aiger.mli _build/aiger.cmi _build/aiger.cma _build/aiger.cmx _build/aiger.cmo _build/aiger.o
 

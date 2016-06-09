@@ -69,11 +69,20 @@ type t = {
   mutable comments:string list;
 }
 
+exception Correspondance_not_found of string
 
-let string2lit_exn aiger string = Hashtbl.find aiger.symbols_inv string 
-let lit2string_exn aiger lit = Hashtbl.find aiger.symbols lit 
-let string2lit aiger string = try Some (string2lit_exn aiger string) with Not_found -> None
-let lit2string aiger lit = try Some (lit2string_exn aiger lit) with Not_found -> None
+let string2lit_exn aiger string = 
+  try Hashtbl.find aiger.symbols_inv string
+  with Not_found -> raise (Correspondance_not_found string)
+let lit2string_exn aiger lit = 
+  try Hashtbl.find aiger.symbols lit 
+  with Not_found -> raise (Correspondance_not_found ("lit("^string_of_int lit^")"))
+let string2lit aiger string = 
+  try Some (Hashtbl.find aiger.symbols_inv string)
+  with Not_found -> None
+let lit2string aiger lit = 
+  try Some ( Hashtbl.find aiger.symbols lit) 
+  with Not_found -> None
 
 let add_correspondance aiger lit symbol =
   Hashtbl.add aiger.symbols_inv symbol lit;
@@ -263,6 +272,8 @@ let conj t rhs0 rhs1 =
       Hashtbl.add t.ands_inv rhs lhs;
       lhs
 
+let disj t rhs0 rhs1 = 
+  neg (conj t (neg rhs0) (neg rhs1))
 
 let add_comment t comment = t.comments <- comment :: t.comments
 

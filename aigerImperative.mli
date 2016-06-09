@@ -76,13 +76,17 @@ val set_output : t -> string -> lit -> unit
 
 (** [conj aiger rhs0 rhs1] gives [lhs]*)
 val conj : t -> lit -> lit -> lit
+val disj : t -> lit -> lit -> lit
 
 val add_comment : t -> string -> unit
 
 (** String corresponding to literals *)
 val lit2string : t -> lit -> string option
 val string2lit : t -> string -> lit option
-(** These function may raise [Not_found] *)
+
+
+exception Correspondance_not_found of string
+(** These functions may raise [Correspondance_not_found] *)
 val lit2string_exn : t -> lit -> string
 val string2lit_exn : t -> string -> lit
 

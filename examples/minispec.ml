@@ -28,6 +28,8 @@ let parse stream =
     Hashtbl.add variables name (add_input aiger name)
 | [< 'Genlex.Kwd "output"; 'Genlex.Ident name; 'Genlex.Kwd "<-"; e=parse_expr >] -> 
     set_output aiger name e
+| [< 'Genlex.Kwd "wire"; 'Genlex.Ident name; 'Genlex.Kwd "<-"; e=parse_expr >] -> 
+    Hashtbl.add variables name e
 | [< 'Genlex.Kwd "reg"; 'Genlex.Ident name >] -> 
     Hashtbl.add variables name (add_latch aiger name)
 | [< 'Genlex.Ident name; 'Genlex.Kwd "<-"; e=parse_expr >] -> 
