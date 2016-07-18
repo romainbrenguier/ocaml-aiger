@@ -33,6 +33,7 @@ sig
   val make : unit -> t
   val fold : (int -> lit -> 'a -> 'a) -> t -> 'a -> 'a
   val add : t -> lit -> unit
+  val elements : t -> lit list 
 end
 
 

@@ -22,6 +22,9 @@ type lit = int
 let aiger_false = 0
 let aiger_true = 1
 let neg lit = if lit mod 2 = 0 then lit + 1 else lit - 1
+let inverted lit = if lit mod 2 = 0 then false else true
+let strip lit = if lit mod 2 = 0 then lit else lit - 1
+
 
 module LitSet = 
 struct
@@ -48,6 +51,11 @@ struct
       then Hashtbl.replace set.lit_tab lit (index - 1)
     ) set.lit_tab;
     set.lit_max <- set.lit_max - 1
+
+  let elements set = fold (fun lit _ accu -> lit :: accu) set []
+
+  let iter f set = 
+    fold (fun _ x () -> f x) set () 
 
 end
   
@@ -220,9 +228,6 @@ let parse inch =
   aiger
 
 
-
-
-
 let read inch = parse inch
 
 let read_from_file file =  
@@ -234,7 +239,6 @@ let read_from_file file =
 let new_var t = t.maxvar <- t.maxvar+1; 2 * t.maxvar
 
 exception AlreadyExists
-
     
 let add_input t name =
   t.num_inputs <- t.num_inputs + 1;
@@ -378,9 +382,16 @@ let write_to_file aiger file =
   let outch = open_out file in
   write outch aiger;
   close_out outch
-
+ 
+let compose aig1 aig2 = 
+  failwith "AigerImperative: compose not implemented"
 let rename aiger renaming =
+  failwith "AigerImperative: rename not implemented"
+
+let rename_list aiger renaming =
   names aiger 
   |>  List.iter (fun name -> if renaming name <> name then change_correspondance aiger name (renaming name))
+
+
   
 
