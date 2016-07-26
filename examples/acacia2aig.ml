@@ -26,7 +26,6 @@ let parse =
       | [< >] -> accu
   in
 
-
   let rec parse_conjunction_output accu = parser
 	     | [< 'Genlex.Kwd "!"; e = parse_var_conjunction_output; f = parse_remainder_conjunction_output ((false, e) :: accu) >] ->  f
 	     | [< e = parse_var_conjunction_output; f = parse_remainder_conjunction_output ((true,e):: accu) >] ->  f

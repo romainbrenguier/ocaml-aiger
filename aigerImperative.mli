@@ -21,7 +21,7 @@
 
 (** An Imperative implementation of the OCaml library for AIGER files *)
 
-type lit
+type lit = int
 
 val aiger_false : lit
 val aiger_true : lit
@@ -34,6 +34,7 @@ sig
   val fold : (int -> lit -> 'a -> 'a) -> t -> 'a -> 'a
   val add : t -> lit -> unit
   val elements : t -> lit list 
+  val iter : (lit -> unit) -> t -> unit
 end
 
 
@@ -60,6 +61,9 @@ type t = {
 
   mutable comments:string list;
 }
+
+(** And gates of the AIG in increasing left hand side *)
+val gates : t -> (lit*lit*lit) list
 
 val read : in_channel -> t
 val read_from_file : string -> t
@@ -111,4 +115,6 @@ val latches : t -> string list
 (** Rename variables of the aiger file according to the given correspondance *)
 val rename : t -> (string -> string) -> unit
 
+(** Merge 2 aiger files where symbols with the same name are merged. *)
+val compose : t -> t -> t
 

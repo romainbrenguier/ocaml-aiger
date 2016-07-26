@@ -79,6 +79,18 @@ type t = {
 
 exception Correspondance_not_found of string
 
+
+let gates aig = 
+  let rec insert (lhs,rhs0,rhs1) accu = function 
+    | [] -> (lhs,rhs0,rhs1) :: List.rev accu
+    | (a,b,c) :: tl when a < lhs -> insert (lhs,rhs0,rhs1) ((a,b,c)::accu) tl
+    | (a,b,c) :: tl -> List.rev_append ((lhs,rhs0,rhs1) :: (a,b,c)::accu) tl 
+  in
+  Hashtbl.fold
+    (fun lhs (rhs0,rhs1) ->
+      insert (lhs,rhs0,rhs1) []
+    ) aig.ands []
+
 let string2lit_exn aiger string = 
   try Hashtbl.find aiger.symbols_inv string
   with Not_found -> raise (Correspondance_not_found string)
