@@ -52,7 +52,7 @@ struct
     ) set.lit_tab;
     set.lit_max <- set.lit_max - 1
 
-  let elements set = fold (fun lit _ accu -> lit :: accu) set []
+  let elements set = fold (fun _ lit accu -> lit :: accu) set []
 
   let iter f set = 
     fold (fun _ x () -> f x) set () 
@@ -81,16 +81,13 @@ exception Correspondance_not_found of string
 
 
 let gates aig = 
-  let rec insert (lhs,rhs0,rhs1) accu = function 
-    | [] -> (lhs,rhs0,rhs1) :: List.rev accu
-    | (a,b,c) :: tl when a < lhs -> insert (lhs,rhs0,rhs1) ((a,b,c)::accu) tl
-    | (a,b,c) :: tl -> List.rev_append ((lhs,rhs0,rhs1) :: (a,b,c)::accu) tl 
-  in
-  Hashtbl.fold
-    (fun lhs (rhs0,rhs1) ->
-      insert (lhs,rhs0,rhs1) []
-    ) aig.ands []
-
+  let unsorted = 
+    Hashtbl.fold
+      (fun lhs (rhs0,rhs1) accu ->
+	(lhs,rhs0,rhs1) :: accu
+      ) aig.ands []
+  in List.sort (fun (a,_,_) (b,_,_) -> compare a b) unsorted
+      
 let string2lit_exn aiger string = 
   try Hashtbl.find aiger.symbols_inv string
   with Not_found -> raise (Correspondance_not_found string)
@@ -149,7 +146,7 @@ let parse inch =
   let latches = Array.make aiger.num_latches aiger_false in
   let outputs = Array.make aiger.num_outputs aiger_false in
 
-  let add_input index lit = 
+  let add_input index lit =
     LitSet.add aiger.inputs lit;
     inputs.(index) <- lit
   in
@@ -394,11 +391,129 @@ let write_to_file aiger file =
   let outch = open_out file in
   write outch aiger;
   close_out outch
- 
-let compose aig1 aig2 = 
-  failwith "AigerImperative: compose not implemented"
-let rename aiger renaming =
-  failwith "AigerImperative: rename not implemented"
+
+let copy aig =
+  let latches = Hashtbl.copy aig.latches in
+  let ands = Hashtbl.copy aig.ands in
+  let ands_inv = Hashtbl.copy aig.ands_inv in
+  let symbols = Hashtbl.copy aig.symbols in
+  let symbols_inv = Hashtbl.copy aig.symbols_inv in
+  {aig with latches; ands; ands_inv; symbols; symbols_inv} 
+  
+let compose aig1 aig2 =
+  let map = Hashtbl.create aig2.num_ands in
+  (* mapping from the literals of the second aig to the newly generated one *)
+  let find x = 
+    if inverted x then neg (Hashtbl.find map (strip x)) else Hashtbl.find map x
+  in
+
+  Hashtbl.add map aiger_true aiger_true;
+  Hashtbl.add map aiger_false aiger_false;
+
+  Hashtbl.iter
+    (fun lit name -> 
+      if Hashtbl.mem aig2.symbols_inv name;
+      then Hashtbl.add map (string2lit_exn aig2 name) lit
+    ) aig1.symbols;
+
+  let aig = copy aig1 in
+  
+  (* add entry in the table for latches of the second module *)
+  Hashtbl.iter
+    (fun l n ->
+      let a = lit2string_exn aig2 l in
+      let lit = add_latch aig a in
+      Hashtbl.add map l lit
+    ) aig2.latches;
+
+  LitSet.iter
+    (fun i -> 
+      (* if the input is not an output of the first module... *)
+      if not (Hashtbl.mem map i)
+      then (* ... we need to add it *)
+	let lit = add_input aig (lit2string_exn aig2 i) in
+	Hashtbl.add map i lit
+    ) aig2.inputs;
+
+  
+  (* add entry in the table for gates of the second module *)
+  (*Hashtbl.iter
+    (fun g (l,r) -> 
+      let lit = conj let na,nvar = new_var a in 
+      Hashtbl.add map g (var2lit nvar); (* this is done when we add gates of the second module *)
+      na
+    ) aig2.ands;*)
+
+  
+  (* add inputs of the second module *)
+  print_endline "AigerImperative: this has to be checked";
+  (*
+  LitSet.iter
+    (fun i ->
+      let name = lit2string_exn aig2 i in
+      if not (Hashtbl.mem aig1.symbols_inv name)
+      then
+	(print_endline "this has to be checked";
+	(*add_input aig (find i) name*)
+	 add_input aig name
+	)
+    ) aig2.inputs;
+  *)
+
+  let rec recursive_add g =
+    try find g
+    with Not_found ->
+      if inverted g
+      then
+	let l,r = Hashtbl.find aig2.ands (strip g) in
+	let lit = conj aig (recursive_add l) (recursive_add r) in
+	Hashtbl.add map g (neg lit);
+	neg lit
+      else 
+	let l,r = Hashtbl.find aig2.ands g in
+	let lit = conj aig (recursive_add l) (recursive_add r) in
+	Hashtbl.add map g lit;
+	lit
+  in
+  
+  (* add gates of the second module *)
+  Hashtbl.iter
+    (fun g _ -> ignore (recursive_add g)
+      (*(l,r) -> 
+      let lit = conj aig (find l) (find r) in
+	Hashtbl.add map g lit*)
+    ) aig2.ands;
+
+  (* add latches of the second module *)
+  Hashtbl.iter 
+    (fun l n -> 
+      set_latch_update aig (find l) (find n)
+    ) aig2.latches;
+
+  (* add outputs of the second module *)
+  LitSet.iter
+    (fun o -> 
+      set_output aig (lit2string_exn aig2 o) (find o) 
+    ) aig2.outputs;
+
+  print_endline "composition finished";
+  aig
+
+    
+let rename aig renaming =
+  Hashtbl.iter
+    (fun lit name ->
+      Hashtbl.remove aig.symbols_inv name
+    ) aig.symbols;
+  Hashtbl.iter
+    (fun lit name ->
+      Hashtbl.replace aig.symbols lit (renaming name);
+      Hashtbl.add aig.symbols_inv (renaming name) lit
+    ) aig.symbols
+
+
+  
+
 
 let rename_list aiger renaming =
   names aiger 
